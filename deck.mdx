@@ -203,7 +203,12 @@ export const theme = dracula;
       FROM cards
       WHERE "name" % 'island'
       ORDER BY sml DESC, name;
-      1	Island vs 0.53846157 Turri Islan vs 0.4375 Moonring Island
+      1	Island vs 0.53846157 Turri Island vs 0.4375 Moonring Island
+
+    SELECT word_similarity(name, 'island') AS sml, * 
+      FROM cards
+      WHERE "name" % 'island'
+      ORDER BY sml DESC, name;
 
   ```
 
