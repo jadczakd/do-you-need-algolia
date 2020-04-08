@@ -3,150 +3,368 @@ import {
   CodeSurferColumns,
   Step,
 } from "code-surfer";
-import { github, vsDark } from "@code-surfer/themes";
+import { github, dracula } from "@code-surfer/themes";
+import "prismjs/components/prism-sql"
 
-export const theme = vsDark;
+export const theme = dracula;
 
-# Hello 👋
-
-You are using [MDX Deck](https://github.com/jxnblk/mdx-deck) and [Code Surfer](https://codesurfer.pomb.us)
+# Do you really need Algolia / Elastic Search ?
+---
+## Postgres is great in general
+### a couple of keywords I would like you to check up on later
+- jsonb
+- Postgres transparency for interaction vectors
+- FEDERATION OBJECT
+- Pubsub
+- Bi directional replication
+- Materialized views- can be updated when they are queried
+  - REFRESH MATERIALIZED VIEW search_index;.
+---
 
 ---
 
+# Kaggle
+# Whay do we use the db for ?
+
+---
+
+
 <CodeSurfer>
 
-```js title="This is a title" subtitle="and this a subtitle"
-function lorem(ipsum, dolor = 1) {
-  const sit = ipsum == null ? 0 : ipsum.sit;
-  dolor = sit - amet(dolor);
-  return sit
-    ? consectetur(ipsum, 0, dolor < 0 ? 0 : dolor)
-    : [];
-}
+  ```sql title="Quick tip -> Import your csvs to postgresql"
 
-function incididunt(ipsum, ut = 1) {
-  ut = labore.et(amet(ut), 0);
-  const sit = ipsum == null ? 0 : ipsum.sit;
+    COPY [Table Name](Optional Columns)
+    FROM '[Absolute Path to File]'
+    DELIMITER '[Delimiter Character]' CSV [HEADER];
 
-  if (!sit || ut < 1) {
-    return [];
-  }
-
-  let dolore = 0;
-  let magna = 0;
-  const aliqua = new eiusmod(labore.ut(sit / ut));
-
-  while (dolore < sit) {
-    aliqua[magna++] = consectetur(
-      ipsum,
-      dolore,
-      (dolore += ut)
-    );
-  }
-
-  return aliqua;
-}
-```
-
-```js
-function lorem(ipsum, dolor = 1) {
-  const sit = ipsum == null ? 0 : ipsum.sit;
-  dolor = sit - amet(dolor);
-  return sit
-    ? consectetur(ipsum, 0, dolor < 0 ? 0 : dolor)
-    : [];
-}
-
-function adipiscing(...elit) {
-  if (!elit.sit) {
-    return [];
-  }
-
-  const sed = elit[0];
-  return eiusmod.tempor(sed) ? sed : [sed];
-}
-
-function incididunt(ipsum, ut = 1) {
-  ut = labore.et(amet(ut), 0);
-  const sit = ipsum == null ? 0 : ipsum.sit;
-
-  if (!sit || ut < 1) {
-    return [];
-  }
-
-  let dolore = 0;
-  let magna = 0;
-  const aliqua = new eiusmod(labore.ut(sit / ut));
-
-  while (dolore < sit) {
-    aliqua[magna++] = consectetur(
-      ipsum,
-      dolore,
-      (dolore += ut)
-    );
-  }
-
-  return aliqua;
-}
-```
-
-```diff 1[10:14],2[15:19],3[22:27],10:12
-
-```
+  ```
 
 </CodeSurfer>
 
 ---
 
-<CodeSurferColumns themes={[vsDark, github]}>
-
-<Step>
-
-```js
-const magna = aliqua => aliqua.ut((enim, ad) => enim, 0);
-```
-
-```js
-const minim = (ad, enim) => dolore.magna(ad / enim);
-```
-
-</Step>
-
-<Step>
-
-```js
-const lorem = (ipsum, dolor, sit) => {
-  const amet = dolor - ipsum;
-  return consectetur.adipiscing(
-    {
-      elit: sed.eiusmod(sit - dolor) / amet + 2,
-    },
-    (tempor, incididunt) => ipsum + amet * incididunt
-  );
-};
-
-const magna = aliqua => aliqua.ut((enim, ad) => enim, 0);
-```
-
-```js
-const minim = (ad, enim) => dolore.magna(ad / enim);
-
-const sed = (eiusmod, tempor, incididunt) => {
-  const ut = tempor - eiusmod;
-  return labore.et(
-    {
-      amet: dolore.magna(incididunt - tempor) / ut + 2,
-    },
-    (aliqua, elit) => eiusmod + ut * elit
-  );
-};
-```
-
-</Step>
-
-</CodeSurferColumns>
+# Who needs a proper search engine?
+> They are great tools but before going down the road of Weapons of Mass Destruction Search, maybe what you need is something a bit lighter which is simply good enough!
+>>> Rachid Belaid
 
 ---
 
-docs:  
-[codesurfer.pomb.us](https://codesurfer.pomb.us)
+# Postgres and FTS
+### Introduced cerca 2012
+### to_tsvector = text search vector
+### Based on lexemes (unit of lexical meaning) & pointers
+### By defaults ignores stopwords - in , and , or etc.
+### Based on NLP - normalization of words
+### Supports synonyms
+ 
+---
+
+# Why is it good (enough)
+## Supports
+- multilingual on the same query
+  - \dF - list all the configs
+  - SELECT to_tsvector(post.language::regconfig, post.title)
+- ranking / boosts
+- steeming
+- fuzzy search for misspelling
+- accenting / unaccenting (messes up with word omission)
+
+---
+
+# What it can search ?
+> A document is the unit of searching in a full-text search system; for example, a magazine article or email message.
+> Postgres documentation 
+
+---
+
+# Meaning it can span multiple tables!
+
+---
+
+<CodeSurfer>
+
+
+  ```sql title="Multi table"
+
+    SELECT post.title || ' ' || 
+          post.content || ' ' ||
+          author.name || ' ' ||
+          coalesce((string_agg(tag.name, ' ')), '') as document
+    FROM post
+    JOIN author ON author.id = post.author_id
+    JOIN posts_tags ON posts_tags.post_id = posts_tags.tag_id
+    JOIN tag ON tag.id = posts_tags.tag_id
+    GROUP BY post.id, author.id;
+
+  ```
+
+  ```sql title="Basic selects"
+    
+    SELECT to_tsvector('Dogs are great and cats suck');
+    'cat':5 'dog':1 'great':
+    
+    SELECT to_tsquery('dog | cat');
+    'dog' | 'cat'
+
+    SELECT to_tsquery('amazing | running');
+    'amaz' | 'run'
+
+    SELECT to_tsvector('english', 'We are running');
+    'run':3
+
+  ```
+
+  ```sql title="Multilingual support"
+
+    SELECT to_tsvector('Spanish', 'Tengo lagunas en mi memoria');
+    'lagun':2 'memori':5
+
+    SELECT to_tsvector('Tengo lagunas en mi memoria');
+    'en':3 'laguna':2 'memoria':5 'mi':4 'tengo':1
+
+  ```
+
+  ```sql title="Watch out with casting"
+
+    ::tsquery just casts - it doesn’t convert to values 
+    SELECT 'impossible'::tsquery, to_tsquery('impossible');
+      tsquery    | to_tsquery
+    --------------+------------
+    'impossible' | 'imposs'
+    (1 row)
+    Vs
+    SELECT 'dream'::tsquery, to_tsquery('dream');
+      tsquery    | to_tsquery
+    --------------+------------
+    'dream'      | 'dream'
+
+  ```
+
+  ```sql title="Sample explaining lexemes"
+
+    SELECT to_tsvector('The quick brown fox jumped over the lazy dog') @@ to_tsquery('fox');
+    SELECT to_tsvector('The quick brown fox jumped over the lazy dog') @@ to_tsquery('foxes');
+    using lexemes allows searches to find variant forms of the same word
+    SELECT to_tsvector('The quick brown fox jumped over the lazy dog') @@ to_tsquery('foxtrot');
+    doesn’t return true, as it Needs the same semantic meaning to return true
+
+  ```
+
+</CodeSurfer>
+
+---
+
+# Simple config
+- doesn't't ignore stopwords 
+- doesn't try to find the stem of the word.
+- pratical for data like name & proper nouns
+
+---
+
+# Drawbacks of using tsvector
+- cannot do a full wildcars search
+- it's left anchored
+- You can do search% but not %search% 
+
+---
+
+# Come trigrams!
+## pg_trgm
+
+---
+
+# Allow for queries that are:
+- Faster
+- Fuzzier
+- More efficient like
+- Allow to find similar words ie misspelled ones
+
+---
+
+<CodeSurfer>
+
+  ```sql title="Trigrams sample"
+
+    select show_trgm('Amazon Forest');
+    {"  a","  f"," am"," fo",ama,azo,est,for,maz,"on ",ore,res,"st ",zon}
+
+    select word_similarity('Amazon Forset', 'Amazon River');
+    0.5
+    select word_similarity('Amazon Forset', 'Amazon Fortnite');
+    0.71428573
+    SELECT similarity('Amazon Forset', 'Amazon River');
+    0.35 - the more trigrams you have in common the closer the match
+
+  ```
+
+  ```sql title="Watch out as it's weird!"
+
+    SELECT similarity(name, 'island') AS sml, * 
+      FROM cards
+      WHERE "name" % 'island'
+      ORDER BY sml DESC, name;
+      1	Island vs 0.53846157 Turri Islan vs 0.4375 Moonring Island
+
+  ```
+
+</CodeSurfer>
+
+---
+
+<CodeSurfer>
+
+  ```sql title="Problem with ILIKE"
+
+    SELECT * FROM table_name WHERE column_name LIKE '%fox%' AND column_name LIKE '%dog%';
+
+  ```
+
+</CodeSurfer>
+
+---
+
+# Trigrams
+- Better partial searching - not left anchored
+# tsvector
+- ability to rank searches
+- weight system
+
+---
+
+<CodeSurfer>
+
+
+  ```sql title="/* Vectors on the fly */"
+
+  select * from movies where to_tsvector(title || overview || original_title) @@ to_tsquery('Batman');
+  select * from cards where to_tsvector(name || coalesce(text,'') ) @@ to_tsquery('Island');
+  ```
+
+  ```sql title="/* separate columns */"
+  alter table movies add column tsv tsvector;
+  update movies set tsv = to_tsvector(title || overview || original_title);
+  
+  alter table cards add column tsv tsvector;
+  update cards set tsv = to_tsvector(name || coalesce(text, ''));
+  ```
+
+  ```sql title="Indexes"
+  create index tsv_idx_cards on cards using gin(tsv);
+  create index tsv_idx_movies on movies using gin(tsv);
+  ```
+
+  ```sql title="Sorting by ranking"
+  select * from cards where tsv @@ to_tsquery('island') order by ts_rank(tsv, to_tsquery('island'));
+  select * from movies where tsv @@ to_tsquery('king') order by ts_rank(tsv, to_tsquery('king'));
+  ```
+
+</CodeSurfer>
+
+---
+
+# Operators 
+- &  to_tsquery('fox & dog');
+- | to_tsquery('fox | clown');
+- ! to_tsquery('!clown'); negation
+- Combination to_tsquery('fox & (dog | clown) & !queen');
+- <-> - word proximity and distance
+- :* - start with
+
+---
+
+# Synonyms Dictionary
+
+---
+
+# Can be integrated with near miss software - think of https://github.com/nvbn/thefuck but for the db search finds near misses, misspellings etc
+
+---
+
+# Text search configuration can be modified
+- Ignore certain types:
+- Define synonyms / stopwords / ispell support / steeming / accenting
+
+---
+
+<CodeSurfer>
+
+  ```sql title="Altering configuration"
+	ALTER TEXT SEARCH CONFIGURATION pg
+    DROP MAPPING FOR email, url, url_path, sfloat, float;
+  ```
+
+</CodeSurfer>
+
+---
+
+# Ranking
+## YOU CAN WRITE YOUR OWN RANKING FUNCTIONS
+
+---
+
+<CodeSurfer>
+
+  ```sql title="Setting weights"
+
+    alter table cards add column tsv_weights tsvector;
+    update cards set tsv_weights = setweight(to_tsvector("name"), 'B') || setweight(to_tsvector(coalesce("text", '')), 'A');
+    '3':6A 'abrade':1B,4A 'artifact':13A 'choose':2A 'creature':10A 'damage':7A 'deals':5A 'destroy':11A 'one':3A 'target':9A,12A 'to':8A
+
+  ```
+
+  ```sql title="Easy to update with"
+
+    CREATE OR REPLACE FUNCTION card_tsvector_trigger ()
+      RETURNS TRIGGER
+      AS $$
+    BEGIN
+      new.tsv_weights := setweight(to_tsvector("name"), 'B') || setweight(to_tsvector(coalesce('text','')), 'A');
+      RETURN new;
+    END
+    $$
+    LANGUAGE plpgsql;
+
+    CREATE TRIGGER tsvweightsupdate
+      BEFORE INSERT
+      OR UPDATE ON cards
+      FOR EACH ROW
+      EXECUTE PROCEDURE card_tsvector_trigger ();
+
+  ```
+
+  ```sql title="Combine two dictionaries"
+  
+    ts_rank(search,plainto_tsquery('english', 'devops')) + 
+    ts_rank(search,plainto_tsquery('simple', 'devops')) as rank
+
+  ```
+
+  </CodeSurfer>
+
+---
+
+# How to make it faster?
+- You can index the vectors
+- GiST
+  - For dynamic data, GiST indexes are faster to update
+  - fast if the number of unique words (lexemes) is under 100,000
+- GIN
+  - will handle 100,000+ lexemes better 
+  - but are slower to update
+
+---
+
+# SHOULD scale well up to ~1kk unique lexemes
+# Trigrams
+- 100,000 records: 40 milliseconds
+- 1,000,000 records: 0.4 seconds
+
+---
+
+Biblio:
+- http://rachbelaid.com/postgres-full-text-search-is-good-enough/
+- http://www.www-old.bartlettpublishing.com/site/bartpub/blog/3/entry/350
+- https://rob.conery.io/2019/10/29/fine-tuning-full-text-search-with-postgresql-12/
+- https://www.kaggle.com/mylesoneill/magic-the-gathering-cards#AllCards.json
+- https://www.kaggle.com/tmdb/tmdb-movie-metadata#tmdb_5000_movies.csv
+- https://www.compose.com/articles/mastering-postgresql-tools-full-text-search-and-phrase-search/
